@@ -25,6 +25,8 @@ namespace server_take_2
     {
         delegate void update_RX_text_delegate(string str);
         delegate void add_client_to_list_delegate(ListViewItem itm);
+        delegate ListView.CheckedListViewItemCollection get_client_list_delegate();
+        delegate bool check_if_client_in_list_delegate(ListViewItem itm);
 
         private static Form1 form = null;
         public Protocol_t selectedProto;
@@ -137,6 +139,11 @@ namespace server_take_2
             CM.stopListening();
             buttonStop.Enabled = false;
             buttonListen.Enabled = true;
+
+            radioButtonTCP.Enabled = true;
+            radioButtonUDP.Enabled = true;
+            radioButtonSSL.Enabled = true;
+            textBoxPort.Enabled = true;
         }
 
         static private void stat_addNewClient(ListViewItem itm)
@@ -160,19 +167,73 @@ namespace server_take_2
             listViewConn.Items.Add(itm);
         }
 
+        private bool stat_clientIsInList(ListViewItem itm)
+        {
+            if (form == null)
+                return false;
+
+            return form.listViewConn.Items.ContainsKey(itm.Name);
+        }
         public bool clientIsInList(ListViewItem itm)
         {
-            return listViewConn.Items.Contains(itm);
+            if (InvokeRequired)
+            {
+                return (bool)this.Invoke(new check_if_client_in_list_delegate(stat_clientIsInList), new object[] { itm });
+            }
+
+            return listViewConn.Items.ContainsKey(itm.Name);
+        }
+
+        private ListView.CheckedListViewItemCollection stat_getActiveClients()
+        {
+            if (form == null)
+                return null;
+
+            return form.listViewConn.CheckedItems;
         }
 
         public ListView.CheckedListViewItemCollection getActiveClients()
         {
+            if (InvokeRequired)
+            {
+                ListView.CheckedListViewItemCollection activeClients = 
+                    (ListView.CheckedListViewItemCollection)this.Invoke(new get_client_list_delegate(stat_getActiveClients));
+                return activeClients;
+            }
+
             return listViewConn.CheckedItems;
         }
 
         private void buttonClearList_Click(object sender, EventArgs e)
         {
             listViewConn.Items.Clear();
+        }
+
+        private void buttonAddClient_Click(object sender, EventArgs e)
+        {
+            string[] arr = new string[2];
+            arr[0] = "127.0.0.1";
+            arr[1] = "9002";
+
+            ListViewItem itm = new ListViewItem(arr);
+            itm.Name = "127.0.0.1" + "9002";
+
+            if (CM.clientNotInList(ref itm))
+            {
+                CM.addClientToList(ref itm);
+            }
+        }
+
+        private void checkBoxEcho_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBoxEcho.Checked)
+            {
+                CM.echoModeOn = true;
+            }
+            else
+            {
+                CM.echoModeOn = false;
+            }
         }
         
     }
@@ -188,6 +249,8 @@ namespace server_take_2
 
     public class ConnectionManager
     {
+        delegate void sendTextToClients_delegate(String text);
+
         Form1 parent;
         public bool is_listening;
         bool stop;
@@ -197,6 +260,7 @@ namespace server_take_2
         static AutoResetEvent autoEvent = new AutoResetEvent(false);
         List<IPEndPoint> clientList;
         UdpState stateHandler;
+        public bool echoModeOn = false;
 
         public ConnectionManager(Form1 parent)
         {
@@ -290,6 +354,7 @@ namespace server_take_2
                 arr[1] = localListenEndPoint.Port.ToString();
 
                 ListViewItem itm = new ListViewItem(arr);
+                itm.Name = localListenEndPoint.Address.ToString() + localListenEndPoint.Port.ToString();
 
                 if (CM.clientNotInList(ref itm))
                 {
@@ -298,6 +363,10 @@ namespace server_take_2
 
                 string receiveString = Encoding.ASCII.GetString(receiveBytes);
                 parent.updateRXTextBox(receiveString);
+
+                if (CM.echoModeOn)
+                    CM.sendTextToClients(receiveString);
+
                 autoEvent.Set();
             }
             catch (ObjectDisposedException e)
@@ -310,26 +379,51 @@ namespace server_take_2
         public void stopListening()
         {
             stop = true;
+            listener.Close();
             autoEvent.Set();
         }
 
-        public void sendTextToClients(String text)
+        private void stat_sendTextToClients(String text)
         {
             // What if were not using UDP??
             UdpClient listener = stateHandler.u;
             byte[] send_buffer = Encoding.ASCII.GetBytes(text);
-            
+
             ListView.CheckedListViewItemCollection activeClients = parent.getActiveClients();
 
             IPEndPoint clientEP;
 
-            foreach (ListViewItem client in activeClients)
+            foreach (ListViewItem clientItm in activeClients)
             {
-                client.SubItems.
-                clientEP = new IPEndPoint((IPAddress)client.GetSubItemAt(0,0), (int)client.GetSubItemAt(1,0));
-            }
+                IPAddress IPAdd;
+                UInt16 port;
 
-            listener.
+                if (!IPAddress.TryParse(clientItm.SubItems[0].Text, out IPAdd))
+                {
+                    continue;
+                }
+                if (!UInt16.TryParse(clientItm.SubItems[1].Text, out port))
+                {
+                    continue;
+                }
+
+                //clientItm.SubItems
+                clientEP = new IPEndPoint(IPAdd, port);
+
+                listener.Send(send_buffer, send_buffer.Length, clientEP);
+            }
+        }
+        
+        public void sendTextToClients(String text)
+        {
+            if (parent.InvokeRequired)
+            {
+                parent.Invoke(new sendTextToClients_delegate(stat_sendTextToClients), new object[] { text });
+            }
+            else
+            {
+                stat_sendTextToClients(text);
+            }
         }
     }
 }

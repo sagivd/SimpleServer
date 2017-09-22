@@ -42,6 +42,7 @@
             this.buttonListen = new System.Windows.Forms.Button();
             this.buttonStop = new System.Windows.Forms.Button();
             this.checkBoxEcho = new System.Windows.Forms.CheckBox();
+            this.buttonAddClient = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // textBoxRX
@@ -184,12 +185,24 @@
             this.checkBoxEcho.TabIndex = 13;
             this.checkBoxEcho.Text = "Echo Enable";
             this.checkBoxEcho.UseVisualStyleBackColor = true;
+            this.checkBoxEcho.CheckedChanged += new System.EventHandler(this.checkBoxEcho_CheckedChanged);
+            // 
+            // buttonAddClient
+            // 
+            this.buttonAddClient.Location = new System.Drawing.Point(319, 410);
+            this.buttonAddClient.Name = "buttonAddClient";
+            this.buttonAddClient.Size = new System.Drawing.Size(75, 23);
+            this.buttonAddClient.TabIndex = 14;
+            this.buttonAddClient.Text = "Add Client";
+            this.buttonAddClient.UseVisualStyleBackColor = true;
+            this.buttonAddClient.Click += new System.EventHandler(this.buttonAddClient_Click);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(437, 509);
+            this.Controls.Add(this.buttonAddClient);
             this.Controls.Add(this.checkBoxEcho);
             this.Controls.Add(this.buttonStop);
             this.Controls.Add(this.buttonListen);
@@ -227,6 +240,7 @@
         private System.Windows.Forms.Button buttonListen;
         private System.Windows.Forms.Button buttonStop;
         private System.Windows.Forms.CheckBox checkBoxEcho;
+        private System.Windows.Forms.Button buttonAddClient;
     }
 }
 
